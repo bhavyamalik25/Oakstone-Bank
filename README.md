@@ -1,37 +1,37 @@
-Oakstone Bank is a secure, modern, and lightweight web-based banking application developed with Python and Streamlit. It provides a premium "Obsidian" themed interface for users to manage their accounts, perform financial transactions, and maintain a detailed history of their banking activities.
+A secure, premium banking application built with Python and Streamlit, featuring a sleek "Obsidian" UI.
 
 🌟 Key Features
-User Authentication: Secure account creation and PIN-protected login.
+Auth: Secure PIN-based login and account creation.
 
-Transaction Engine: Perform seamless deposits and withdrawals with real-time balance updates.
+Transactions: Real-time deposits, withdrawals, and balance updates.
 
-Transaction Logs: An automated, chronological record of all financial movements.
+History: Chronological logs of all financial activity.
 
-Persistent Storage: Data is stored locally via a JSON file, ensuring information is saved between sessions.
+Storage: Persistent data management via local JSON.
 
-Premium UI: A consistent, high-end "Obsidian" (dark) aesthetic that provides a sleek user experience.
+UI/UX: Custom "Obsidian" dark-themed aesthetic.
 
 🛠️ Tech Stack
 Language: Python 3.x
 
-Framework: Streamlit (UI & Web Server)
+Framework: Streamlit
 
-Database: JSON (Local data persistence)
+Database: JSON (Local persistence)
 
-Styling: Custom CSS/Markdown (Theme Engine)
+Styling: Custom CSS/Markdown
 
-🏗️ Project Architecture
-The application is designed for modularity and ease of maintenance:
+🏗️ Architecture
+Data Vault: Manages seamless I/O operations for oakstone_users.json.
 
-Data Vault: Handles all file I/O operations, ensuring account data is parsed from and saved to oakstone_users.json consistently.
+UI/UX Layer: Injects CSS for a unified, brand-aligned visual identity.
 
-UI/UX Layer: Uses custom CSS injection within st.markdown to enforce a unified brand identity across the entire application.
-
-Logic Flow: Utilizes Streamlit's session management to route users through the "Our Story," "Login," and "Account Creation" modules.
+Logic Flow: Streamlit-based routing for secure user sessions and navigation.
 
 💡 Future Scope
-Cloud Database: Transitioning from local JSON storage to a cloud-based database like MongoDB Atlas or PostgreSQL.
+Scalability: Transition to MongoDB or PostgreSQL.
 
-Enhanced Security: Implementing Two-Factor Authentication (2FA) and hash-based password protection.
+Security: Implement 2FA and password hashing.
 
-Notification System: Integrating automated email alerts for successful transactions.
+Engagement: Automated email/SMS transaction alerts.
+
+Developed by Bhavya Malik
