@@ -1,0 +1,10 @@
+# Ignore the database file
+oakstone_users.json
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore IDE settings
+.vscode/
+.DS_Store
