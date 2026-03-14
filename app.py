@@ -13,6 +13,10 @@ def save_all_accounts(all_data):
     with open("oakstone_users.json", "w") as file:
         json.dump(all_data, file)
 
+# Initialize Session State to remember the user
+if 'authenticated_user' not in st.session_state:
+    st.session_state.authenticated_user = None
+
 all_users = load_all_accounts()
 
 # --- 2. THEME & UI ---
@@ -66,41 +70,55 @@ elif access_type == "Open New Account":
 
 elif access_type == "Login":
     st.subheader("Access Your Vault")
-    # Login inputs moved to main page
-    acc_num = st.text_input("Account Number")
-    pin_input = st.text_input("PIN", type="password")
+    
+    # Check if user is logged in
+    if st.session_state.authenticated_user is None:
+        acc_num = st.text_input("Account Number")
+        pin_input = st.text_input("PIN", type="password")
 
-    if st.button("Authenticate"):
-        if acc_num in all_users and pin_input == all_users[acc_num]["pin"]:
-            user = all_users[acc_num]
-            st.success(f"Welcome back, {user['name']}!")
+        if st.button("Authenticate"):
+            if acc_num in all_users and pin_input == all_users[acc_num]["pin"]:
+                st.session_state.authenticated_user = acc_num
+                st.rerun()
+            else:
+                st.error("Invalid Account Number or PIN.")
+    
+    # If logged in, show the banking interface
+    else:
+        acc_num = st.session_state.authenticated_user
+        user = all_users[acc_num]
+        
+        # Logout button logic
+        if st.button("Logout"):
+            st.session_state.authenticated_user = None
+            st.rerun()
             
-            tab1, tab2, tab3 = st.tabs(["Dashboard", "Payments", "Statement"])
-            
-            with tab1:
-                st.header("Account Overview")
-                st.metric("Current Balance", f"₹{user['balance']}")
+        st.success(f"Welcome back, {user['name']}!")
+        
+        tab1, tab2, tab3 = st.tabs(["Dashboard", "Payments", "Statement"])
+        
+        with tab1:
+            st.header("Account Overview")
+            st.metric("Current Balance", f"₹{user['balance']}")
 
-            with tab2:
-                amt = st.number_input("Enter Amount", min_value=0)
-                col1, col2 = st.columns(2)
-                if col1.button("Withdraw"):
-                    if 0 < amt <= user['balance']:
-                        user['balance'] -= amt
-                        user['history'].append(f"Withdrew ₹{amt}")
-                        save_all_accounts(all_users)
-                        st.rerun()
-                    else:
-                        st.error("Insufficient Funds!")
-                if col2.button("Deposit"):
-                    user['balance'] += amt
-                    user['history'].append(f"Deposited ₹{amt}")
+        with tab2:
+            amt = st.number_input("Enter Amount", min_value=0)
+            col1, col2 = st.columns(2)
+            if col1.button("Withdraw"):
+                if 0 < amt <= user['balance']:
+                    user['balance'] -= amt
+                    user['history'].append(f"Withdrew ₹{amt}")
                     save_all_accounts(all_users)
                     st.rerun()
+                else:
+                    st.error("Insufficient Funds!")
+            if col2.button("Deposit"):
+                user['balance'] += amt
+                user['history'].append(f"Deposited ₹{amt}")
+                save_all_accounts(all_users)
+                st.rerun()
 
-            with tab3:
-                st.subheader("Transaction History")
-                for h in reversed(user['history']):
-                    st.text(f"• {h}")
-        else:
-            st.error("Invalid Account Number or PIN.")
+        with tab3:
+            st.subheader("Transaction History")
+            for h in reversed(user['history']):
+                st.text(f"• {h}")
