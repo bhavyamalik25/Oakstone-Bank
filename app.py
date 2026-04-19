@@ -1,394 +1,464 @@
 import streamlit as st
 import json
+from datetime import datetime
 
-# --- 1. DATA VAULT ---
+# ─────────────────────────────────────────────
+# 1. DATA HELPERS
+# ─────────────────────────────────────────────
 def load_all_accounts():
     try:
-        with open("oakstone_users.json", "r") as file:
-            return json.load(file)
+        with open("oakstone_users.json", "r") as f:
+            return json.load(f)
     except:
-        return {"111": {"name": "Bhavya Malik", "pin": "1234", "balance": 100000, "history": []}}
+        return {
+            "111": {
+                "name": "Bhavya Malik",
+                "pin": "1234",
+                "balance": 100000,
+                "history": []
+            }
+        }
 
-def save_all_accounts(all_data):
-    with open("oakstone_users.json", "w") as file:
-        json.dump(all_data, file)
+def save_all_accounts(data):
+    with open("oakstone_users.json", "w") as f:
+        json.dump(data, f)
 
-# Initialize Session State
-if 'authenticated_user' not in st.session_state:
+# Each transaction is now a dict:
+# { "type": "credit"/"debit", "amount": 500, "desc": "Salary", "category": "Income", "date": "2024-06-01" }
+
+def make_txn(txn_type, amount, desc, category):
+    return {
+        "type": txn_type,
+        "amount": amount,
+        "desc": desc,
+        "category": category,
+        "date": datetime.now().strftime("%d %b %Y, %I:%M %p")
+    }
+
+# ─────────────────────────────────────────────
+# 2. SESSION & PAGE CONFIG
+# ─────────────────────────────────────────────
+st.set_page_config(page_title="Oakstone Bank", page_icon="🏦", layout="centered")
+
+if "authenticated_user" not in st.session_state:
     st.session_state.authenticated_user = None
 
 all_users = load_all_accounts()
 
-# --- 2. THEME & UI ---
-st.set_page_config(page_title="Oakstone Bank", page_icon="🏦", layout="centered")
-
+# ─────────────────────────────────────────────
+# 3. STYLES — Navy/White banking palette
+# ─────────────────────────────────────────────
 st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap');
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
-    /* Base */
-    .stApp {
-        background-color: #F5F0E8;
-        color: #3B3530;
-        font-family: 'Jost', sans-serif;
-        font-weight: 300;
-    }
+/* ── Base ── */
+.stApp {
+    background-color: #F0F4F8;
+    color: #1A2332;
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+}
 
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #EDE6D6;
-        border-right: 1px solid #D6CBBA;
-    }
-    [data-testid="stSidebar"] * {
-        color: #3B3530 !important;
-    }
-    [data-testid="stSidebar"] .stRadio label {
-        font-family: 'Jost', sans-serif;
-        font-weight: 300;
-        letter-spacing: 0.08em;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        color: #6B5E52 !important;
-    }
+/* ── Make main content use full width on mobile ── */
+.block-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-top: 1rem !important;
+    max-width: 100% !important;
+}
 
-    /* Headings */
-    h1, h2, h3, h4 {
-        font-family: 'Cormorant Garamond', serif !important;
-        font-weight: 400;
-        color: #3B3530 !important;
-        letter-spacing: 0.03em;
-    }
-    h1 { font-size: 2.8rem !important; }
-    h2 { font-size: 2rem !important; }
-    h3 { font-size: 1.5rem !important; }
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background-color: #0F2044;
+}
+[data-testid="stSidebar"] * {
+    color: #CBD5E1 !important;
+}
+[data-testid="stSidebar"] .stRadio label {
+    font-size: 1rem;          /* bigger tap targets on mobile */
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #94A3B8 !important;
+    padding: 0.4rem 0;        /* easier to tap */
+}
 
-    /* Subheader override */
-    .stSubheader, [data-testid="stHeading"] {
-        font-family: 'Cormorant Garamond', serif !important;
-    }
+/* ── Headings ── */
+h1, h2, h3, h4 {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600;
+    color: #0F2044 !important;
+}
+h1 { font-size: 1.6rem !important; }   /* slightly smaller so it fits mobile */
+h2 { font-size: 1.3rem !important; }
+h3 { font-size: 1.05rem !important; }
 
-    /* Buttons */
-    .stButton > button {
-        background-color: transparent;
-        border: 1px solid #9C8672;
-        border-radius: 0px;
-        color: #6B5E52;
-        font-family: 'Jost', sans-serif;
-        font-weight: 400;
-        font-size: 0.78rem;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        padding: 0.55rem 1.6rem;
-        transition: all 0.25s ease;
-    }
-    .stButton > button:hover {
-        background-color: #9C8672;
-        color: #F5F0E8;
-        border-color: #9C8672;
-    }
+/* ── Buttons — tall enough to tap comfortably ── */
+.stButton > button {
+    background-color: #1E40AF;
+    border: none;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 1rem;          /* readable on small screens */
+    letter-spacing: 0.03em;
+    padding: 0.75rem 1.5rem;  /* min 48px height for touch */
+    transition: background 0.2s ease;
+    width: 100%;
+    min-height: 48px;         /* Apple/Google touch target guideline */
+}
+.stButton > button:hover {
+    background-color: #1E3A8A;
+    color: #FFFFFF;
+}
 
-    /* Inputs */
-    .stTextInput > div > div > input,
-    .stNumberInput > div > div > input {
-        background-color: #EDE6D6;
-        border: none;
-        border-bottom: 1px solid #C4B8A8;
-        border-radius: 0px;
-        color: #3B3530;
-        font-family: 'Jost', sans-serif;
-        font-weight: 300;
-        font-size: 0.92rem;
-        padding: 0.5rem 0.3rem;
-    }
-    .stTextInput > div > div > input:focus,
-    .stNumberInput > div > div > input:focus {
-        border-bottom: 1px solid #9C8672;
-        box-shadow: none;
-    }
-    .stTextInput label, .stNumberInput label {
-        font-family: 'Jost', sans-serif;
-        font-size: 0.72rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #9C8672 !important;
-        font-weight: 400;
-    }
+/* ── Inputs — large enough to type on mobile ── */
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input,
+.stSelectbox > div > div > div {
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 8px;
+    color: #1A2332;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;          /* prevents iOS auto-zoom (must be ≥16px) */
+    padding: 0.65rem 0.85rem;
+    min-height: 48px;
+}
+.stTextInput > div > div > input:focus,
+.stNumberInput > div > div > input:focus {
+    border-color: #1E40AF;
+    box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.15);
+}
+.stTextInput label, .stNumberInput label, .stSelectbox label {
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #64748B !important;
+    font-weight: 500;
+}
 
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: transparent;
-        border-bottom: 1px solid #D6CBBA;
-        gap: 0;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: transparent;
-        border: none;
-        color: #9C8672;
-        font-family: 'Jost', sans-serif;
-        font-size: 0.75rem;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        font-weight: 400;
-        padding: 0.6rem 1.4rem;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: transparent !important;
-        color: #3B3530 !important;
-        border-bottom: 2px solid #9C8672 !important;
-    }
+/* ── Tabs — scrollable on small screens ── */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: transparent;
+    border-bottom: 2px solid #E2E8F0;
+    gap: 0;
+    overflow-x: auto;         /* tabs scroll horizontally on mobile */
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: transparent;
+    border: none;
+    color: #64748B;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 0.75rem 1rem;    /* taller for touch */
+    white-space: nowrap;      /* stop tab text wrapping */
+    min-height: 44px;
+}
+.stTabs [aria-selected="true"] {
+    color: #1E40AF !important;
+    border-bottom: 2px solid #1E40AF !important;
+}
 
-    /* Metric */
-    [data-testid="stMetric"] {
-        background-color: #EDE6D6;
-        border: 1px solid #D6CBBA;
-        padding: 1.5rem 2rem;
-    }
-    [data-testid="stMetricLabel"] {
-        font-family: 'Jost', sans-serif;
-        font-size: 0.72rem;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        color: #9C8672 !important;
-    }
-    [data-testid="stMetricValue"] {
-        font-family: 'Cormorant Garamond', serif !important;
-        font-size: 2.4rem !important;
-        color: #3B3530 !important;
-        font-weight: 400;
-    }
-
-    /* Alerts */
-    .stSuccess, .stError {
-        border-radius: 0px;
-        font-family: 'Jost', sans-serif;
-        font-size: 0.85rem;
-        letter-spacing: 0.04em;
-    }
-    .stSuccess {
-        background-color: #E8E2D5;
-        border-left: 3px solid #9C8672;
-        color: #3B3530;
-    }
-    .stError {
-        background-color: #EDE0D4;
-        border-left: 3px solid #C4896A;
-        color: #3B3530;
-    }
-
-    /* Divider */
-    hr { border-color: #D6CBBA; }
-
-    /* Sidebar title */
-    .sidebar-brand {
-        font-family: 'Cormorant Garamond', serif;
-        font-size: 1.4rem;
-        font-weight: 400;
-        letter-spacing: 0.12em;
-        color: #3B3530;
-        text-transform: uppercase;
-        margin-bottom: 0.2rem;
-    }
-    .sidebar-tagline {
-        font-family: 'Jost', sans-serif;
-        font-size: 0.68rem;
-        letter-spacing: 0.2em;
-        color: #9C8672;
-        text-transform: uppercase;
-        margin-bottom: 1.5rem;
-    }
-
-    /* Transaction items */
-    .txn-item {
-        font-family: 'Jost', sans-serif;
-        font-size: 0.85rem;
-        font-weight: 300;
-        color: #6B5E52;
-        padding: 0.6rem 0;
-        border-bottom: 1px solid #E8E2D5;
-        letter-spacing: 0.04em;
-    }
-
-    /* Account ID display */
-    .account-id {
-        font-family: 'Jost', sans-serif;
-        font-size: 0.72rem;
-        letter-spacing: 0.2em;
-        color: #9C8672;
-        text-transform: uppercase;
-    }
-
-    /* Welcome text */
-    .welcome-name {
-        font-family: 'Cormorant Garamond', serif;
-        font-size: 1.6rem;
-        font-weight: 300;
-        font-style: italic;
-        color: #6B5E52;
-    }
-
-    /* Hide streamlit branding */
-    #MainMenu, footer, header { visibility: hidden; }
-    </style>
-""", unsafe_allow_html=True)
+/* ── Metric ── */
+[data-testid="stMetric"] {
+    background-color: #0F2044;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 0.72rem;
+    letter-spacing, unsafe_allow_html=True)
 
 
-# --- LANDING PAGE ---
-def show_landing_page():
-    st.markdown("<h1>Oakstone</h1>", unsafe_allow_html=True)
+# ─────────────────────────────────────────────
+# 4. LANDING PAGE
+# ─────────────────────────────────────────────
+def show_landing():
+    st.markdown("<h1>Oakstone Bank</h1>", unsafe_allow_html=True)
     st.markdown("""
-    <p style='font-family: Cormorant Garamond, serif; font-size: 1.15rem; font-style: italic; color: #9C8672; letter-spacing: 0.06em; margin-top: -0.8rem;'>
-        Heritage Banking, Refined for Today
+    <p style='color:#64748B; font-size:0.95rem; margin-top:-0.5rem; margin-bottom:1.5rem;'>
+        Trusted banking, built for everyone.
     </p>
     """, unsafe_allow_html=True)
-
     st.markdown("<hr>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <p style='font-family: Jost, sans-serif; font-size: 0.92rem; font-weight: 300; color: #6B5E52; line-height: 1.9; letter-spacing: 0.04em;'>
-        At Oakstone, we bridge the timeless values of traditional integrity with the clarity of modern digital banking.
-        Your wealth, your legacy — held with the quiet confidence of the oak.
-    </p>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("""
-        <div style='border-top: 2px solid #9C8672; padding-top: 1rem;'>
-            <p style='font-family: Cormorant Garamond, serif; font-size: 1.1rem; color: #3B3530; margin-bottom: 0.3rem;'>Secure</p>
-            <p style='font-family: Jost, sans-serif; font-size: 0.78rem; font-weight: 300; color: #9C8672; line-height: 1.7;'>Industry-standard encryption guards every asset.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown("""
-        <div style='border-top: 2px solid #C4B8A8; padding-top: 1rem;'>
-            <p style='font-family: Cormorant Garamond, serif; font-size: 1.1rem; color: #3B3530; margin-bottom: 0.3rem;'>Efficient</p>
-            <p style='font-family: Jost, sans-serif; font-size: 0.78rem; font-weight: 300; color: #9C8672; line-height: 1.7;'>Real-time balances and instant transaction logging.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown("""
-        <div style='border-top: 2px solid #D6CBBA; padding-top: 1rem;'>
-            <p style='font-family: Cormorant Garamond, serif; font-size: 1.1rem; color: #3B3530; margin-bottom: 0.3rem;'>Legacy</p>
-            <p style='font-family: Jost, sans-serif; font-size: 0.78rem; font-weight: 300; color: #9C8672; line-height: 1.7;'>We don't just bank — we build financial histories.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    features = [
+        ("🔒", "Secure", "PIN-protected accounts and encrypted local storage."),
+        ("⚡", "Instant", "Real-time balance updates and live transfer receipts."),
+        ("📊", "Insightful", "Spending chart and categorised transaction history."),
+    ]
+    for col, (icon, title, body) in zip([col1, col2, col3], features):
+        with col:
+            st.markdown(f"""
+            <div class='card' style='text-align:center;'>
+                <div style='font-size:1.6rem;'>{icon}</div>
+                <div style='font-weight:600; font-size:0.95rem; margin:0.4rem 0 0.3rem;'>{title}</div>
+                <div style='font-size:0.78rem; color:#64748B; line-height:1.6;'>{body}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("""
-    <p style='font-family: Jost, sans-serif; font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #C4B8A8;'>
-        Use the sidebar to access your vault or begin your journey with us.
-    </p>
-    """, unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("Use the sidebar to log in or open a new account.")
 
 
-# --- SIDEBAR ---
+# ─────────────────────────────────────────────
+# 5. SIDEBAR
+# ─────────────────────────────────────────────
 st.sidebar.markdown("""
-    <div class='sidebar-brand'>🏦 Oakstone</div>
-    <div class='sidebar-tagline'>Private Banking</div>
-    <hr style='border-color: #D6CBBA; margin-bottom: 1.2rem;'>
+<div class='sb-brand'>🏦 Oakstone</div>
+<div class='sb-tag'>Private Banking</div>
+<hr style='border-color:#1E3A8A; margin-bottom:1rem;'>
 """, unsafe_allow_html=True)
 
-access_type = st.sidebar.radio("", ["Our Story", "Login", "Open New Account"])
+page = st.sidebar.radio("", ["Home", "Login", "Open Account"])
 
 
-# --- 3. LOGIC FLOW ---
-if access_type == "Our Story":
-    show_landing_page()
+# ─────────────────────────────────────────────
+# 6. PAGE ROUTING
+# ─────────────────────────────────────────────
 
-elif access_type == "Open New Account":
-    st.markdown("<h2>Begin Your Journey</h2>", unsafe_allow_html=True)
-    st.markdown("""
-    <p style='font-family: Jost, sans-serif; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: #9C8672; margin-bottom: 1.5rem;'>
-        Open a new Oakstone account
-    </p>
-    """, unsafe_allow_html=True)
+# ── HOME ──
+if page == "Home":
+    show_landing()
 
+
+# ── OPEN ACCOUNT ──
+elif page == "Open Account":
+    st.markdown("<h2>Open a New Account</h2>", unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    with st.container():
-        new_name = st.text_input("Full Name")
-        new_pin = st.text_input("Set 4-Digit PIN", type="password", max_chars=4)
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Create My Account"):
-            if new_name and len(new_pin) == 4:
-                new_acc_num = str(len(all_users) + 111)
-                all_users[new_acc_num] = {"name": new_name, "pin": new_pin, "balance": 100000, "history": []}
-                save_all_accounts(all_users)
-                st.success(f"Account created. Your Account ID: {new_acc_num}")
-            else:
-                st.error("Please provide a valid name and a 4-digit PIN.")
+    new_name = st.text_input("Full Name")
+    new_pin  = st.text_input("Choose a 4-Digit PIN", type="password", max_chars=4)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-elif access_type == "Login":
+    if st.button("Create Account"):
+        if new_name and len(new_pin) == 4 and new_pin.isdigit():
+            new_id = str(int(max(all_users.keys())) + 1)
+            all_users[new_id] = {
+                "name": new_name,
+                "pin":  new_pin,
+                "balance": 100000,
+                "history": []
+            }
+            save_all_accounts(all_users)
+            st.success(f"✅ Account created! Your Account Number is **{new_id}**. Please save it.")
+        else:
+            st.error("Enter a valid name and a 4-digit numeric PIN.")
+
+
+# ── LOGIN & DASHBOARD ──
+elif page == "Login":
+
+    # ── Not logged in: show login form ──
     if st.session_state.authenticated_user is None:
-        st.markdown("<h2>Access Your Vault</h2>", unsafe_allow_html=True)
+        st.markdown("<h2>Login to Your Account</h2>", unsafe_allow_html=True)
         st.markdown("<hr>", unsafe_allow_html=True)
 
-        acc_num = st.text_input("Account Number")
-        pin_input = st.text_input("PIN", type="password")
+        acc = st.text_input("Account Number")
+        pin = st.text_input("PIN", type="password")
         st.markdown("<br>", unsafe_allow_html=True)
 
-        if st.button("Authenticate"):
-            if acc_num in all_users and pin_input == all_users[acc_num]["pin"]:
-                st.session_state.authenticated_user = acc_num
+        if st.button("Login"):
+            if acc in all_users and pin == all_users[acc]["pin"]:
+                st.session_state.authenticated_user = acc
                 st.rerun()
             else:
-                st.error("Invalid Account Number or PIN.")
+                st.error("Incorrect account number or PIN.")
 
+    # ── Logged in: show dashboard ──
     else:
-        acc_num = st.session_state.authenticated_user
-        user = all_users[acc_num]
+        acc  = st.session_state.authenticated_user
+        user = all_users[acc]
 
-        # Header row
-        col_left, col_right = st.columns([3, 1])
-        with col_left:
-            st.markdown(f"<div class='welcome-name'>Welcome back, {user['name']}.</div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='account-id'>Account No. {acc_num}</div>", unsafe_allow_html=True)
-        with col_right:
-            st.markdown("<br>", unsafe_allow_html=True)
+        # Welcome strip + logout
+        col_l, col_r = st.columns([4, 1])
+        with col_l:
+            st.markdown(f"""
+            <div class='welcome-strip'>
+                <div class='name'>Hello, {user['name']} 👋</div>
+                <div class='sub'>Account No. {acc} &nbsp;|&nbsp; Oakstone Private Banking</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_r:
+            st.markdown("<br><br>", unsafe_allow_html=True)
             if st.button("Logout"):
                 st.session_state.authenticated_user = None
                 st.rerun()
 
-        st.markdown("<hr>", unsafe_allow_html=True)
+        # ── TABS ──
+        tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Deposit / Withdraw", "Transfer", "History"])
 
-        tab1, tab2, tab3 = st.tabs(["Dashboard", "Payments", "Statement"])
 
+        # ══ TAB 1 – DASHBOARD ══
         with tab1:
             st.markdown("<br>", unsafe_allow_html=True)
-            st.metric("Current Balance", f"₹{user['balance']:,.2f}")
+            st.metric("Available Balance", f"₹{user['balance']:,.2f}")
 
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("#### Recent activity")
+
+            history = user["history"]
+
+            if not history:
+                st.markdown("<p style='color:#94A3B8; font-size:0.85rem;'>No transactions yet.</p>", unsafe_allow_html=True)
+            else:
+                # Show last 5 as a quick summary
+                recent = list(reversed(history))[:5]
+                for txn in recent:
+                    # Support old string-format history entries gracefully
+                    if isinstance(txn, str):
+                        st.markdown(f"<div class='txn-row'><span>{txn}</span></div>", unsafe_allow_html=True)
+                        continue
+
+                    sign  = "+" if txn["type"] == "credit" else "−"
+                    cls   = "txn-credit" if txn["type"] == "credit" else "txn-debit"
+                    label = txn.get("desc", txn["category"])
+                    st.markdown(f"""
+                    <div class='txn-row'>
+                        <div>
+                            <div style='font-weight:500;'>{label}</div>
+                            <div style='font-size:0.75rem; color:#94A3B8;'>{txn.get('category','')} · {txn.get('date','')}</div>
+                        </div>
+                        <span class='{cls}'>{sign}₹{txn['amount']:,.2f}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # ── Simple spending bar chart ──
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("#### Spending by category")
+
+                # Tally debits by category
+                from collections import defaultdict
+                cat_totals = defaultdict(float)
+                for txn in history:
+                    if isinstance(txn, dict) and txn["type"] == "debit":
+                        cat_totals[txn.get("category", "Other")] += txn["amount"]
+
+                if cat_totals:
+                    # st.bar_chart expects a dict or DataFrame
+                    st.bar_chart(cat_totals)
+                else:
+                    st.markdown("<p style='color:#94A3B8; font-size:0.85rem;'>No spending data yet.</p>", unsafe_allow_html=True)
+
+
+        # ══ TAB 2 – DEPOSIT / WITHDRAW ══
         with tab2:
             st.markdown("<br>", unsafe_allow_html=True)
-            amt = st.number_input("Enter Amount", min_value=0)
+
+            CATEGORIES = ["Food & Dining", "Shopping", "Bills & Utilities", "Transport", "Healthcare", "Entertainment", "Income", "Other"]
+
+            amount   = st.number_input("Amount (₹)", min_value=0.0, step=100.0, format="%.2f")
+            note     = st.text_input("Description (optional)", placeholder="e.g. Grocery run")
+            category = st.selectbox("Category", CATEGORIES)
+
             st.markdown("<br>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
-            if col1.button("Withdraw"):
-                if 0 < amt <= user['balance']:
-                    user['balance'] -= amt
-                    user['history'].append(f"Withdrew ₹{amt:,.2f}")
-                    save_all_accounts(all_users)
-                    st.rerun()
-                else:
-                    st.error("Insufficient funds.")
-            if col2.button("Deposit"):
-                if amt > 0:
-                    user['balance'] += amt
-                    user['history'].append(f"Deposited ₹{amt:,.2f}")
-                    save_all_accounts(all_users)
-                    st.rerun()
-                else:
-                    st.error("Please enter a valid amount.")
 
+            with col1:
+                if st.button("⬇ Withdraw"):
+                    if amount <= 0:
+                        st.error("Enter an amount greater than 0.")
+                    elif amount > user["balance"]:
+                        st.error("Insufficient balance.")
+                    else:
+                        user["balance"] -= amount
+                        user["history"].append(make_txn("debit", amount, note or f"Withdrawal – {category}", category))
+                        save_all_accounts(all_users)
+                        st.success(f"₹{amount:,.2f} withdrawn.")
+                        st.rerun()
+
+            with col2:
+                if st.button("⬆ Deposit"):
+                    if amount <= 0:
+                        st.error("Enter an amount greater than 0.")
+                    else:
+                        user["balance"] += amount
+                        user["history"].append(make_txn("credit", amount, note or f"Deposit – {category}", category))
+                        save_all_accounts(all_users)
+                        st.success(f"₹{amount:,.2f} deposited.")
+                        st.rerun()
+
+
+        # ══ TAB 3 – TRANSFER ══
         with tab3:
             st.markdown("<br>", unsafe_allow_html=True)
-            if user['history']:
-                for h in reversed(user['history']):
-                    st.markdown(f"<div class='txn-item'>— {h}</div>", unsafe_allow_html=True)
+            st.markdown("""
+            <div class='card' style='border-left: 4px solid #1E40AF;'>
+                <b>How it works:</b> Enter the recipient's Oakstone account number and the amount.
+                Both accounts update instantly.
+            </div>
+            """, unsafe_allow_html=True)
+
+            recipient_id = st.text_input("Recipient Account Number")
+            transfer_amt = st.number_input("Amount to Transfer (₹)", min_value=0.0, step=100.0, format="%.2f", key="tf_amt")
+            transfer_note = st.text_input("Note (optional)", placeholder="e.g. Rent for June", key="tf_note")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if st.button("Send Money →"):
+                if recipient_id == acc:
+                    st.error("You cannot transfer to your own account.")
+                elif recipient_id not in all_users:
+                    st.error("Recipient account not found.")
+                elif transfer_amt <= 0:
+                    st.error("Enter a valid transfer amount.")
+                elif transfer_amt > user["balance"]:
+                    st.error("Insufficient balance.")
+                else:
+                    recipient = all_users[recipient_id]
+
+                    # Debit sender
+                    user["balance"] -= transfer_amt
+                    user["history"].append(make_txn(
+                        "debit", transfer_amt,
+                        transfer_note or f"Transfer to {recipient['name']}",
+                        "Transfer"
+                    ))
+
+                    # Credit recipient
+                    recipient["balance"] += transfer_amt
+                    recipient["history"].append(make_txn(
+                        "credit", transfer_amt,
+                        transfer_note or f"Transfer from {user['name']}",
+                        "Transfer"
+                    ))
+
+                    save_all_accounts(all_users)
+                    st.success(f"✅ ₹{transfer_amt:,.2f} sent to **{recipient['name']}** (Acc. {recipient_id}).")
+                    st.rerun()
+
+
+        # ══ TAB 4 – HISTORY ══
+        with tab4:
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            history = user["history"]
+            if not history:
+                st.markdown("<p style='color:#94A3B8; font-size:0.85rem;'>No transaction history yet.</p>", unsafe_allow_html=True)
             else:
-                st.markdown("""
-                <p style='font-family: Jost, sans-serif; font-size: 0.82rem; color: #C4B8A8; font-style: italic; letter-spacing: 0.06em;'>
-                    No transactions recorded yet.
-                </p>
-                """, unsafe_allow_html=True)
+                for txn in reversed(history):
+                    # Gracefully handle old string entries
+                    if isinstance(txn, str):
+                        st.markdown(f"<div class='txn-row'><span>{txn}</span></div>", unsafe_allow_html=True)
+                        continue
+
+                    sign = "+" if txn["type"] == "credit" else "−"
+                    cls  = "txn-credit" if txn["type"] == "credit" else "txn-debit"
+
+                    st.markdown(f"""
+                    <div class='txn-row'>
+                        <div>
+                            <div style='font-weight:500; font-size:0.9rem;'>{txn.get('desc', '')}</div>
+                            <div style='font-size:0.75rem; color:#94A3B8;'>{txn.get('category','')} · {txn.get('date','')}</div>
+                        </div>
+                        <span class='{cls}' style='font-size:0.95rem;'>{sign}₹{txn['amount']:,.2f}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
